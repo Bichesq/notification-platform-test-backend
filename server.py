@@ -6,9 +6,9 @@ Complete backend service for managing applications and API keys
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, ForeignKey, Text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional, List
 import secrets
@@ -67,8 +67,9 @@ class ApplicationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        orm_mode=True
+    )
 
 
 class APIKeyCreate(BaseModel):
@@ -92,8 +93,9 @@ class APIKeyInfo(BaseModel):
     last_used_at: Optional[datetime]
     is_active: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(
+        orm_mode=True
+    )
 
 
 # FastAPI App
@@ -196,7 +198,7 @@ async def create_application(
         raise HTTPException(status_code=500, detail=f"Failed to create application: {str(e)}")
 
 
-@app.get("/app", response_model=List[ApplicationResponse])
+@app.get("/apps", response_model=List[ApplicationResponse])
 async def list_applications(
     skip: int = 0,
     limit: int = 100,
