@@ -204,9 +204,13 @@ async def list_applications(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    """List all applications"""
+    print(f"[DEBUG] Received GET /apps with skip={skip}, limit={limit}")
+    
     apps = db.query(Application).offset(skip).limit(limit).all()
+    
+    print(f"[DEBUG] Returning {len(apps)} applications")
     return apps
+
 
 
 @app.get("/app/{app_id}", response_model=ApplicationResponse)
