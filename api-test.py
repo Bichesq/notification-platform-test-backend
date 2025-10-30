@@ -1,7 +1,7 @@
 import requests
 
 def test_list_applications():
-    url = "http://localhost:8000/apps"  # Change to your backend URL if different
+    url = "http://localhost:8001/apps"  # Change to your backend URL if different
     params = {
         "skip": 0,
         "limit": 10
