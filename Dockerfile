@@ -26,13 +26,13 @@ FROM base AS runtime
 COPY . .
 
 # Expose FastAPI port
-EXPOSE 8000
+EXPOSE 8001
 
 # Optional: Healthcheck to ensure app is running
-HEALTHCHECK CMD curl --fail http://localhost:8000/ || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8001/ || exit 1
 
 # Environment variable for database URL (defaults to SQLite)
 ENV DATABASE_URL=sqlite:///./app.db
 
 # Run the app using Uvicorn with hot-reload disabled (for production)
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]
