@@ -57,13 +57,16 @@ Base.metadata.create_all(bind=engine)
 # Pydantic Models
 class ApplicationCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
+    id: str
+    email: str
+    domain: str
 
 
 class ApplicationResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str]
+    email: str
+    domain: str
     created_at: datetime
     updated_at: datetime
     
