@@ -27,7 +27,8 @@ class Application(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
+    id = Column(String(255, nullable=False)
+    email = Column(String(255, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
