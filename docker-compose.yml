@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    container_name: notification-platform-backend
+    ports:
+      - "80:8001"
+    environment:
+      # Database configuration
+      DATABASE_URL: sqlite:///./data/app.db
+      
+      # CORS configuration - update with your frontend URLs
+      # For development (allow all):
+      ALLOWED_ORIGINS: "https://ynp01-s3-frontend2.s3.amazonaws.com"
+      # For production (specific domains):
+      # ALLOWED_ORIGINS: "https://your-s3-bucket.s3.amazonaws.com,https://your-cloudfront-domain.cloudfront.net"
+      
+    volumes:
+      # Persist database
+      - ./data:/app/data
+      # Mount code for development (optional - comment out for production)
+      # - .:/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  data:
+    driver: local
+

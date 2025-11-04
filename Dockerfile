@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc build-essential sqlite3 libffi-dev \
+    gcc build-essential sqlite3 libffi-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency specification
@@ -28,11 +28,15 @@ COPY . .
 # Expose FastAPI port
 EXPOSE 8001
 
-# Optional: Healthcheck to ensure app is running
-HEALTHCHECK CMD curl --fail http://localhost:8001/ || exit 1
+# Healthcheck to ensure app is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl --fail http://localhost:8001/health || exit 1
 
-# Environment variable for database URL (defaults to SQLite)
+# Environment variables with defaults
 ENV DATABASE_URL=sqlite:///./app.db
+ENV ALLOWED_ORIGINS=*
+ENV APP_PORT=8001
+ENV APP_HOST=0.0.0.0
 
 # Run the app using Uvicorn with hot-reload disabled (for production)
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001"]

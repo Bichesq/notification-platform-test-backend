@@ -15,6 +15,15 @@ import secrets
 import hashlib
 import os
 
+# Environment Configuration
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+# If ALLOWED_ORIGINS is "*", convert to list for CORS middleware
+if ALLOWED_ORIGINS == ["*"]:
+    ALLOWED_ORIGINS = ["*"]
+else:
+    # Strip whitespace from each origin
+    ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS]
+
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
@@ -109,13 +118,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware - configured via ALLOWED_ORIGINS environment variable
+# For production, set ALLOWED_ORIGINS to your S3 bucket URL or CloudFront domain
+# Example: ALLOWED_ORIGINS=https://your-bucket.s3.amazonaws.com,https://your-cloudfront-domain.com
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this properly in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "Accept"],
+    expose_headers=["Content-Type", "X-Total-Count"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 
@@ -178,7 +191,20 @@ async def root():
     return {
         "status": "online",
         "service": "Application API Key Manager",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "cors_origins": ALLOWED_ORIGINS if ALLOWED_ORIGINS != ["*"] else "all origins (development mode)"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Detailed health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "Application API Key Manager",
+        "version": "1.0.0",
+        "database": "connected",
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
