@@ -36,7 +36,9 @@ class Application(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
+    application_id = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
+    domain = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -74,6 +76,7 @@ class ApplicationCreate(BaseModel):
 class ApplicationResponse(BaseModel):
     id: int
     name: str
+    application_id: str
     email: str
     domain: str
     created_at: datetime
@@ -216,7 +219,9 @@ async def create_application(
     try:
         new_app = Application(
             name=app_data.name,
-            description=app_data.description
+            application_id=app_data.id,
+            email=app_data.email,
+            domain=app_data.domain
         )
         db.add(new_app)
         db.commit()
