@@ -326,8 +326,7 @@ curl -H "X-API-Key: sk_your_api_key_here" \
 ## Support
 
 For issues or questions:
-- Check [EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md)
-- Review container logs
+- Check [EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md) 
 - Check API documentation at `/docs`
 
 ## Related Documentation
