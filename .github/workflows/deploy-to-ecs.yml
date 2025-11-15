@@ -15,8 +15,8 @@ env:
     ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
     ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
     ECS_TASK_DEFINITION: ${{ secrets.ECS_TASK_DEFINITION }}
-    CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
-    APP_PORT: ${{ secrets.APP_PORT }}
+   # CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
+    APP_PORT: 8001
 
 jobs:
   deploy:
