@@ -10,13 +10,13 @@ on:
   workflow_dispatch:  # Allow manual triggering
 
 env:
-  AWS_REGION: us-east-1  # Change to your AWS region
-  ECR_REPOSITORY: notification-platform-backend
-  ECS_SERVICE: notification-platform-service
-  ECS_CLUSTER: notification-platform-cluster
-  ECS_TASK_DEFINITION: notification-platform-task
-  CONTAINER_NAME: notification-platform-backend
-  APP_PORT: 8001
+    AWS_REGION: ${{ secrets.AWS_REGION }}  # Change to your AWS region
+    ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+    ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
+    ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
+    ECS_TASK_DEFINITION: ${{ secrets.ECS_TASK_DEFINITION }}
+    CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
+    APP_PORT: ${{ secrets.APP_PORT }}
 
 jobs:
   deploy:
