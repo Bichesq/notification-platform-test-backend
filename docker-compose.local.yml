@@ -1,0 +1,58 @@
+# Docker Compose for Local Development with DynamoDB Local
+# This configuration runs the backend with a local DynamoDB instance
+# No AWS credentials required!
+
+version: '3.8'
+
+services:
+  # Local DynamoDB instance
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+    networks:
+      - backend-network
+
+  # Backend service
+  backend:
+    build: .
+    container_name: notification-platform-backend
+    ports:
+      - "8001:8001"
+    environment:
+      # AWS Configuration (fake credentials for local DynamoDB)
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: fakeAccessKey
+      AWS_SECRET_ACCESS_KEY: fakeSecretKey
+      
+      # Point to local DynamoDB
+      DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+      
+      # DynamoDB Table Names
+      APPLICATIONS_TABLE: applications
+      API_KEYS_TABLE: api_keys
+      
+      # CORS Configuration (allow all for local development)
+      ALLOWED_ORIGINS: "*"
+      
+      # Server Configuration
+      APP_PORT: 8001
+      APP_HOST: 0.0.0.0
+    depends_on:
+      - dynamodb-local
+    networks:
+      - backend-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  backend-network:
+    driver: bridge
+

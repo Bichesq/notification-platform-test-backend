@@ -70,7 +70,20 @@ docker build -t $IMAGE_NAME .
 echo -e "${GREEN}✓ Docker image built successfully${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 3: Starting new container with DynamoDB configuration...${NC}"
+echo -e "${YELLOW}Step 3: Checking for IAM role...${NC}"
+# Check if EC2 instance has IAM role attached
+if curl -s -f -m 2 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
+    ROLE_NAME=$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+    echo -e "${GREEN}✓ IAM role detected: $ROLE_NAME${NC}"
+    echo -e "${GREEN}  Container will use EC2 instance IAM role for AWS credentials${NC}"
+else
+    echo -e "${YELLOW}⚠ No IAM role detected on this EC2 instance${NC}"
+    echo -e "${YELLOW}  Container will need AWS credentials via environment variables or mounted credentials${NC}"
+    echo -e "${YELLOW}  For production, it's recommended to attach an IAM role to the EC2 instance${NC}"
+fi
+echo ""
+
+echo -e "${YELLOW}Step 4: Starting new container with DynamoDB configuration...${NC}"
 docker run -d \
   --name $CONTAINER_NAME \
   --restart unless-stopped \
@@ -85,7 +98,7 @@ echo -e "${GREEN}✓ Container started successfully${NC}"
 echo ""
 
 # Wait for container to be healthy
-echo -e "${YELLOW}Step 4: Waiting for container to be healthy...${NC}"
+echo -e "${YELLOW}Step 5: Waiting for container to be healthy...${NC}"
 sleep 5
 
 # Check if container is running
@@ -95,17 +108,26 @@ else
     echo -e "${RED}✗ Container failed to start${NC}"
     echo -e "${YELLOW}Container logs:${NC}"
     docker logs $CONTAINER_NAME
+    echo ""
+    echo -e "${RED}Common issues:${NC}"
+    echo -e "${YELLOW}1. NoCredentialsError: EC2 instance needs IAM role with DynamoDB permissions${NC}"
+    echo -e "${YELLOW}2. Check logs above for specific error messages${NC}"
+    echo -e "${YELLOW}3. See AWS_CREDENTIALS_SETUP.md for detailed troubleshooting${NC}"
     exit 1
 fi
 
 # Test health endpoint
 echo ""
-echo -e "${YELLOW}Step 5: Testing health endpoint...${NC}"
+echo -e "${YELLOW}Step 6: Testing health endpoint...${NC}"
 sleep 2
 if curl -f http://localhost:8001/health &> /dev/null; then
     echo -e "${GREEN}✓ Health check passed${NC}"
 else
-    echo -e "${YELLOW}⚠ Health check not ready yet (this is normal, may take a few seconds)${NC}"
+    echo -e "${YELLOW}⚠ Health check not ready yet (checking logs...)${NC}"
+    echo ""
+    docker logs --tail 20 $CONTAINER_NAME
+    echo ""
+    echo -e "${YELLOW}If you see 'NoCredentialsError', see AWS_CREDENTIALS_SETUP.md${NC}"
 fi
 
 echo ""

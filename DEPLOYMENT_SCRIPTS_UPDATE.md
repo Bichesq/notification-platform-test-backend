@@ -26,8 +26,8 @@ The deployment scripts have been updated to support the DynamoDB migration. All 
 ./deploy-to-ec2.sh <EC2_IP> [FRONTEND_URL] [AWS_REGION]
 
 # Examples:
-./deploy-to-ec2.sh 54.87.39.36 https://my-bucket.s3.amazonaws.com
-./deploy-to-ec2.sh 54.87.39.36 https://my-bucket.s3.amazonaws.com us-west-2
+./deploy-to-ec2.sh 13.218.153.136 https://my-bucket.s3.amazonaws.com
+./deploy-to-ec2.sh 13.218.153.136 https://ynp01-s3-frontend2.s3.amazonaws.com us-east-1
 ```
 
 **Environment Variables Passed to Container**:

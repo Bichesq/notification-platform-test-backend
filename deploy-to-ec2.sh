@@ -84,28 +84,52 @@ echo ""
 
 # Step 3: Build and deploy on EC2
 echo -e "${YELLOW}Step 3: Building Docker image on EC2...${NC}"
-ssh -i "$SSH_KEY" ubuntu@$EC2_IP << EOF
+ssh -i "$SSH_KEY" ubuntu@$EC2_IP bash -s << ENDSSH "$FRONTEND_URL" "$AWS_REGION" "$APPLICATIONS_TABLE" "$API_KEYS_TABLE"
     set -e
 
-    cd ~/$DEPLOY_DIR
+    FRONTEND_URL="\$1"
+    AWS_REGION="\$2"
+    APPLICATIONS_TABLE="\$3"
+    API_KEYS_TABLE="\$4"
+
+    cd ~/notification-backend-deploy
+
+    echo "Checking for IAM role..."
+    if curl -s -f -m 2 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
+        ROLE_NAME=\$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+        echo "✓ IAM role detected: \$ROLE_NAME"
+        echo "  Container will use EC2 instance IAM role for AWS credentials"
+    else
+        echo "⚠ WARNING: No IAM role detected on this EC2 instance"
+        echo "  The container will fail to start without AWS credentials"
+        echo "  Please attach an IAM role with DynamoDB permissions to this EC2 instance"
+        echo "  See AWS_CREDENTIALS_SETUP.md for instructions"
+        echo ""
+        read -p "Continue anyway? (y/N) " -n 1 -r
+        echo
+        if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then
+            echo "Deployment cancelled"
+            exit 1
+        fi
+    fi
 
     echo "Building Docker image on EC2..."
-    docker build -f Dockerfile -t $IMAGE_NAME:latest .
+    docker build -f Dockerfile -t notification-backend:latest .
 
     echo "Stopping old container (if exists)..."
-    docker stop $CONTAINER_NAME 2>/dev/null || true
-    docker rm $CONTAINER_NAME 2>/dev/null || true
+    docker stop notification-platform-backend 2>/dev/null || true
+    docker rm notification-platform-backend 2>/dev/null || true
 
     echo "Starting new container with DynamoDB configuration..."
     docker run -d \
-        --name $CONTAINER_NAME \
+        --name notification-platform-backend \
         --restart unless-stopped \
-        -p 80:$APP_PORT \
-        -e AWS_REGION="$AWS_REGION" \
-        -e APPLICATIONS_TABLE="$APPLICATIONS_TABLE" \
-        -e API_KEYS_TABLE="$API_KEYS_TABLE" \
-        -e ALLOWED_ORIGINS="$FRONTEND_URL" \
-        $IMAGE_NAME:latest
+        -p 80:8001 \
+        -e AWS_REGION="\$AWS_REGION" \
+        -e APPLICATIONS_TABLE="\$APPLICATIONS_TABLE" \
+        -e API_KEYS_TABLE="\$API_KEYS_TABLE" \
+        -e ALLOWED_ORIGINS="\$FRONTEND_URL" \
+        notification-backend:latest
 
     echo "Cleaning up old images..."
     docker image prune -f
@@ -114,11 +138,31 @@ ssh -i "$SSH_KEY" ubuntu@$EC2_IP << EOF
     sleep 5
 
     echo "Checking container status..."
-    docker ps | grep $CONTAINER_NAME
+    if docker ps | grep -q notification-platform-backend; then
+        echo "✓ Container is running"
+    else
+        echo "✗ Container failed to start"
+        echo "Container logs:"
+        docker logs notification-platform-backend
+        echo ""
+        echo "Common issues:"
+        echo "1. NoCredentialsError: EC2 instance needs IAM role with DynamoDB permissions"
+        echo "2. See AWS_CREDENTIALS_SETUP.md for detailed troubleshooting"
+        exit 1
+    fi
 
     echo "Testing health endpoint..."
-    curl -f http://localhost:$APP_PORT/health || echo "Health check failed (may take a few more seconds)"
-EOF
+    sleep 2
+    if curl -f http://localhost:8001/health > /dev/null 2>&1; then
+        echo "✓ Health check passed"
+    else
+        echo "⚠ Health check not ready yet (checking logs...)"
+        docker logs --tail 20 notification-platform-backend
+        echo ""
+        echo "If you see 'NoCredentialsError', the EC2 instance needs an IAM role"
+        echo "See AWS_CREDENTIALS_SETUP.md for instructions"
+    fi
+ENDSSH
 
 echo -e "${GREEN}✓ Deployment completed${NC}"
 echo ""
