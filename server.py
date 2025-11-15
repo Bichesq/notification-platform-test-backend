@@ -36,8 +36,9 @@ class Application(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
-    id = Column(String(255, nullable=False)
-    email = Column(String(255, nullable=False)
+    application_id = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    domain = Column(String(255), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -66,15 +67,16 @@ Base.metadata.create_all(bind=engine)
 
 # Pydantic Models
 class ApplicationCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    id: str
-    email: str
-    domain: str
+    App_name: str = Field(..., min_length=1, max_length=255)
+    Application: str
+    Email: str
+    Domain: str
 
 
 class ApplicationResponse(BaseModel):
     id: int
     name: str
+    application_id: str
     email: str
     domain: str
     created_at: datetime
@@ -216,8 +218,10 @@ async def create_application(
     """Create a new application"""
     try:
         new_app = Application(
-            name=app_data.name,
-            description=app_data.description
+            name=app_data.App_name,
+            application_id=app_data.Application,
+            email=app_data.Email,
+            domain=app_data.Domain
         )
         db.add(new_app)
         db.commit()
@@ -286,7 +290,7 @@ async def generate_api_key(
             key_hash=hash_api_key(api_key),
             name=key_data.name or f"API Key for {app.name}",
             expires_at=key_data.expires_at,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(datetime.timezone.utc)
         )
         
         db.add(key_record)

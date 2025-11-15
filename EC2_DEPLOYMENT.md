@@ -21,7 +21,7 @@ chmod +x deploy-to-ec2.sh
 ./deploy-to-ec2.sh <EC2_IP> <FRONTEND_URL>
 
 # Example:
-./deploy-to-ec2.sh 54.87.39.36 https://your-bucket.s3.amazonaws.com
+./deploy-to-ec2.sh 98.81.247.123 http://ynp01-s3-frontend2.s3-website-us-east-1.amazonaws.com/
 ```
 
 ### Option 2: Manual Deployment
