@@ -5,7 +5,7 @@ on:
     branches:
       - main  # Change to 'master' if that's your default branch
     paths:
-      - 'test-frontend-backend/notification-platform-test-backend/**'
+      - 'notification-platform-test-backend/**'
       - '.github/workflows/deploy-to-ecs.yml'
   workflow_dispatch:  # Allow manual triggering
 
