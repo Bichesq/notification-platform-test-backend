@@ -3,7 +3,7 @@ name: Deploy Backend to AWS ECS
 on:
   push:
     branches:
-      - dev  # Change to 'master' if that's your default branch
+      - main  # Change to 'master' if that's your default branch
     paths:
       - 'test-frontend-backend/notification-platform-test-backend/**'
       - '.github/workflows/deploy-to-ecs.yml'
