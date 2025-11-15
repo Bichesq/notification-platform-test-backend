@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Deploy Backend on EC2 (Run this script ON the EC2 instance)
-# This script builds and runs the Docker container directly on EC2
+# This script builds and runs the Docker container directly on EC2 with DynamoDB
 # No need for Docker on your local machine!
 
 set -e
@@ -14,12 +14,16 @@ NC='\033[0m' # No Color
 
 # Configuration
 FRONTEND_URL=${1:-"https://ynp01-s3-frontend2.s3.amazonaws.com"}
+AWS_REGION=${2:-"us-east-1"}
 CONTAINER_NAME="notification-platform-backend"
 IMAGE_NAME="notification-backend:latest"
-DATA_DIR="$HOME/notification-platform-data"
+
+# DynamoDB Configuration
+APPLICATIONS_TABLE="${APPLICATIONS_TABLE:-applications}"
+API_KEYS_TABLE="${API_KEYS_TABLE:-api_keys}"
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Backend Deployment on EC2${NC}"
+echo -e "${GREEN}Backend Deployment on EC2 (DynamoDB)${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
@@ -27,10 +31,12 @@ echo ""
 if [ "$FRONTEND_URL" = "*" ]; then
     echo -e "${YELLOW}WARNING: CORS is set to allow ALL origins (development mode)${NC}"
     echo -e "${YELLOW}For production, provide your S3 bucket URL as an argument${NC}"
-    echo -e "${YELLOW}Usage: ./deploy-on-ec2.sh https://your-bucket.s3.amazonaws.com${NC}"
+    echo -e "${YELLOW}Usage: ./deploy-on-ec2.sh https://your-bucket.s3.amazonaws.com [AWS_REGION]${NC}"
     echo ""
 else
     echo -e "${GREEN}CORS will be configured for: ${FRONTEND_URL}${NC}"
+    echo -e "${GREEN}AWS Region: ${AWS_REGION}${NC}"
+    echo -e "${GREEN}DynamoDB Tables: ${APPLICATIONS_TABLE}, ${API_KEYS_TABLE}${NC}"
     echo ""
 fi
 
@@ -53,29 +59,25 @@ if ! docker ps &> /dev/null; then
     sleep 2
 fi
 
-echo -e "${YELLOW}Step 1: Creating data directory...${NC}"
-mkdir -p "$DATA_DIR"
-echo -e "${GREEN}✓ Data directory created: $DATA_DIR${NC}"
-echo ""
-
-echo -e "${YELLOW}Step 2: Stopping old container (if exists)...${NC}"
+echo -e "${YELLOW}Step 1: Stopping old container (if exists)...${NC}"
 docker stop $CONTAINER_NAME 2>/dev/null || true
 docker rm $CONTAINER_NAME 2>/dev/null || true
 echo -e "${GREEN}✓ Old container removed${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 3: Building Docker image...${NC}"
+echo -e "${YELLOW}Step 2: Building Docker image...${NC}"
 docker build -t $IMAGE_NAME .
 echo -e "${GREEN}✓ Docker image built successfully${NC}"
 echo ""
 
-echo -e "${YELLOW}Step 4: Starting new container...${NC}"
+echo -e "${YELLOW}Step 3: Starting new container with DynamoDB configuration...${NC}"
 docker run -d \
   --name $CONTAINER_NAME \
   --restart unless-stopped \
   -p 8001:8001 \
-  -v "$DATA_DIR:/app/data" \
-  -e DATABASE_URL=sqlite:///./data/app.db \
+  -e AWS_REGION="$AWS_REGION" \
+  -e APPLICATIONS_TABLE="$APPLICATIONS_TABLE" \
+  -e API_KEYS_TABLE="$API_KEYS_TABLE" \
   -e ALLOWED_ORIGINS="$FRONTEND_URL" \
   $IMAGE_NAME
 
@@ -83,7 +85,7 @@ echo -e "${GREEN}✓ Container started successfully${NC}"
 echo ""
 
 # Wait for container to be healthy
-echo -e "${YELLOW}Step 5: Waiting for container to be healthy...${NC}"
+echo -e "${YELLOW}Step 4: Waiting for container to be healthy...${NC}"
 sleep 5
 
 # Check if container is running
@@ -98,7 +100,7 @@ fi
 
 # Test health endpoint
 echo ""
-echo -e "${YELLOW}Step 6: Testing health endpoint...${NC}"
+echo -e "${YELLOW}Step 5: Testing health endpoint...${NC}"
 sleep 2
 if curl -f http://localhost:8001/health &> /dev/null; then
     echo -e "${GREEN}✓ Health check passed${NC}"
@@ -117,8 +119,14 @@ echo ""
 echo -e "${GREEN}Configuration:${NC}"
 echo "  - Container Name: $CONTAINER_NAME"
 echo "  - Port: 8001"
-echo "  - Data Directory: $DATA_DIR"
+echo "  - AWS Region: $AWS_REGION"
+echo "  - DynamoDB Tables: $APPLICATIONS_TABLE, $API_KEYS_TABLE"
 echo "  - CORS Origins: $FRONTEND_URL"
+echo ""
+echo -e "${YELLOW}Important:${NC}"
+echo "  - Backend now uses DynamoDB (not SQLite)"
+echo "  - Ensure EC2 instance has IAM role with DynamoDB permissions"
+echo "  - Tables will be auto-created on first run"
 echo ""
 echo -e "${GREEN}Useful Commands:${NC}"
 echo "  View logs:        docker logs -f $CONTAINER_NAME"
@@ -128,14 +136,15 @@ echo "  Restart:          docker restart $CONTAINER_NAME"
 echo "  Remove:           docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME"
 echo ""
 echo -e "${GREEN}Test Endpoints:${NC}"
-echo "  Health:           curl http://localhost:80/health"
-echo "  Root:             curl http://localhost:80/"
-echo "  Applications:     curl http://localhost:80/apps"
+echo "  Health:           curl http://localhost:8001/health"
+echo "  Root:             curl http://localhost:8001/"
+echo "  Applications:     curl http://localhost:8001/apps"
 echo ""
 echo -e "${YELLOW}Next Steps:${NC}"
 echo "  1. Test the endpoints above"
-echo "  2. Ensure EC2 Security Group allows port 80"
-echo "  3. Update frontend .env.local with this EC2 IP"
-echo "  4. Rebuild and redeploy frontend to S3"
+echo "  2. Ensure EC2 Security Group allows port 8001"
+echo "  3. Verify EC2 IAM role has DynamoDB permissions"
+echo "  4. Update frontend .env.local with this EC2 IP"
+echo "  5. Rebuild and redeploy frontend to S3"
 echo ""
 

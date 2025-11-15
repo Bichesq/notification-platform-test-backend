@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc build-essential sqlite3 libffi-dev curl \
+    gcc build-essential libffi-dev curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency specification
@@ -33,7 +33,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl --fail http://localhost:8001/health || exit 1
 
 # Environment variables with defaults
-ENV DATABASE_URL=sqlite:///./app.db
+ENV AWS_REGION=us-east-1
+ENV APPLICATIONS_TABLE=applications
+ENV API_KEYS_TABLE=api_keys
 ENV ALLOWED_ORIGINS=*
 ENV APP_PORT=8001
 ENV APP_HOST=0.0.0.0

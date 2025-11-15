@@ -7,20 +7,24 @@ services:
     ports:
       - "80:8001"
     environment:
-      # Database configuration
-      DATABASE_URL: sqlite:///./data/app.db
-      
+      # AWS Configuration
+      AWS_REGION: us-east-1
+      # For local DynamoDB (uncomment if using local DynamoDB):
+      # DYNAMODB_ENDPOINT: http://dynamodb-local:8000
+
+      # DynamoDB Table Names
+      APPLICATIONS_TABLE: applications
+      API_KEYS_TABLE: api_keys
+
       # CORS configuration - update with your frontend URLs
       # For development (allow all):
       ALLOWED_ORIGINS: "https://ynp01-s3-frontend2.s3.amazonaws.com"
       # For production (specific domains):
       # ALLOWED_ORIGINS: "https://your-s3-bucket.s3.amazonaws.com,https://your-cloudfront-domain.cloudfront.net"
-      
-    volumes:
-      # Persist database
-      - ./data:/app/data
-      # Mount code for development (optional - comment out for production)
-      # - .:/app
+
+    # Mount AWS credentials (if not using IAM roles)
+    # volumes:
+    #   - ~/.aws:/root/.aws:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -28,6 +32,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Optional: Local DynamoDB for development
+  # dynamodb-local:
+  #   image: amazon/dynamodb-local:latest
+  #   container_name: dynamodb-local
+  #   ports:
+  #     - "8000:8000"
+  #   command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
 
 volumes:
   data:
