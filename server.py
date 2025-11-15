@@ -67,10 +67,10 @@ Base.metadata.create_all(bind=engine)
 
 # Pydantic Models
 class ApplicationCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    id: str
-    email: str
-    domain: str
+    App_name: str = Field(..., min_length=1, max_length=255)
+    Application: str
+    Email: str
+    Domain: str
 
 
 class ApplicationResponse(BaseModel):
@@ -218,10 +218,10 @@ async def create_application(
     """Create a new application"""
     try:
         new_app = Application(
-            name=app_data.name,
-            application_id=app_data.id,
-            email=app_data.email,
-            domain=app_data.domain
+            name=app_data.App_name,
+            application_id=app_data.Application,
+            email=app_data.Email,
+            domain=app_data.Domain
         )
         db.add(new_app)
         db.commit()
@@ -290,7 +290,7 @@ async def generate_api_key(
             key_hash=hash_api_key(api_key),
             name=key_data.name or f"API Key for {app.name}",
             expires_at=key_data.expires_at,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(datetime.timezone.utc)
         )
         
         db.add(key_record)

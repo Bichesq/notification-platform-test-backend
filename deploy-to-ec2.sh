@@ -94,7 +94,7 @@ ssh -i "$SSH_KEY" ubuntu@$EC2_IP << EOF
     docker run -d \
         --name $CONTAINER_NAME \
         --restart unless-stopped \
-        -p $APP_PORT:$APP_PORT \
+        -p 80:$APP_PORT \
         -v ~/notification-platform-data:/app/data \
         -e DATABASE_URL=sqlite:///./data/app.db \
         -e ALLOWED_ORIGINS="$FRONTEND_URL" \
