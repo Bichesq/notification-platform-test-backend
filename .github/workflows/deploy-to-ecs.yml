@@ -15,7 +15,7 @@ env:
     ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
     ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
     ECS_TASK_DEFINITION: ${{ secrets.ECS_TASK_DEFINITION }}
-   # CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
+    CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
     APP_PORT: 8001
 
 jobs:
@@ -44,7 +44,9 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          cd notification-platform-test-backend
+          # ls -l
+          # ls notification-platform-test-backend
+          # cd notification-platform-test-backend
           
           # Build Docker image
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
