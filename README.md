@@ -144,12 +144,38 @@ curl http://localhost:8001/health
 
 ```bash
 # List applications
-curl http://localhost:8001/apps
+curl http://localhost:80/apps
 
 # Create application
-curl -X POST http://localhost:8001/app \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test App","email":"test@example.com","domain":"example.com"}'
+curl -X POST "http://13.221.91.36:80/app" \
+-H "Content-Type: application/json" \
+-d '{
+  "App_name": "TestApp",
+  "Application": "com.example.testapp",
+  "Email": "test@example.com",
+  "Domain": "example.com"
+}'
+
+# Delete application
+curl -X DELETE "http://13.221.91.36:80/app/1"
+
+# Get specific application
+curl http://13.221.91.36:80/app/1
+
+# Generate API key
+curl -X POST "http://localhost:80/app/{app_id}/api-key" \
+-H "Content-Type: application/json" \
+-d '{
+  "name": "My API Key",
+  "expires_at": "2025-12-31T23:59:59Z"
+}'
+# example
+curl -X POST "http://13.221.91.36:80/app/app_001/api-key" \
+-H "Content-Type: application/json" \
+-d '{
+  "name": "My API Key",
+  "expires_at": "2025-12-31T23:59:59Z"
+}'
 ```
 
 ### Test CORS

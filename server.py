@@ -163,7 +163,7 @@ class ApplicationResponse(BaseModel):
     email: str
     domain: str
     created_at: datetime
-    updated_at: datetime
+    updated_at: datetime 
 
 
 class APIKeyCreate(BaseModel):

@@ -94,24 +94,24 @@ ssh -i "$SSH_KEY" ubuntu@$EC2_IP bash -s << ENDSSH "$FRONTEND_URL" "$AWS_REGION"
 
     cd ~/notification-backend-deploy
 
-    echo "Checking for IAM role..."
-    if curl -s -f -m 2 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
-        ROLE_NAME=\$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-        echo "✓ IAM role detected: \$ROLE_NAME"
-        echo "  Container will use EC2 instance IAM role for AWS credentials"
-    else
-        echo "⚠ WARNING: No IAM role detected on this EC2 instance"
-        echo "  The container will fail to start without AWS credentials"
-        echo "  Please attach an IAM role with DynamoDB permissions to this EC2 instance"
-        echo "  See AWS_CREDENTIALS_SETUP.md for instructions"
-        echo ""
-        read -p "Continue anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then
-            echo "Deployment cancelled"
-            exit 1
-        fi
-    fi
+    # echo "Checking for IAM role..."
+    # if curl -s -f -m 2 http://169.254.169.254/latest/meta-data/iam/security-credentials/ > /dev/null 2>&1; then
+    #     ROLE_NAME=\$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+    #     echo "✓ IAM role detected: \$ROLE_NAME"
+    #     echo "  Container will use EC2 instance IAM role for AWS credentials"
+    # else
+    #     echo "⚠ WARNING: No IAM role detected on this EC2 instance"
+    #     echo "  The container will fail to start without AWS credentials"
+    #     echo "  Please attach an IAM role with DynamoDB permissions to this EC2 instance"
+    #     echo "  See AWS_CREDENTIALS_SETUP.md for instructions"
+    #     echo ""
+    #     read -p "Continue anyway? (y/N) " -n 1 -r
+    #     echo
+    #     if [[ ! \$REPLY =~ ^[Yy]\$ ]]; then
+    #         echo "Deployment cancelled"
+    #         exit 1
+    #     fi
+    # fi
 
     echo "Building Docker image on EC2..."
     docker build -f Dockerfile -t notification-backend:latest .
