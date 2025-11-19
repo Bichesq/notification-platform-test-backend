@@ -6,25 +6,64 @@ FastAPI-based backend service for managing applications and API keys.
 
 - ✅ Application management (CRUD operations)
 - ✅ API key generation and management
-- ✅ SQLite database (easily switchable to PostgreSQL)
+- ✅ **AWS DynamoDB database** (NoSQL, serverless, auto-scaling)
 - ✅ CORS support for S3-hosted frontend
 - ✅ Docker containerization
 - ✅ Health check endpoints
 - ✅ API key authentication
+- ✅ AWS service integration (SES, SNS)
 
 ## Quick Start
 
+### Prerequisites
+
+1. **AWS Account** with DynamoDB access
+2. **AWS Credentials** configured (IAM role or credentials file)
+3. **Python 3.8+** installed
+4. **Docker** (optional, for containerized deployment)
+
 ### Local Development
 
+**Step 1: Install dependencies**
 ```bash
-# Install dependencies
 pip install -r requirements.txt
+```
 
-# Run the server
+**Step 2: Configure AWS credentials**
+
+Option A - Use AWS CLI to configure credentials:
+```bash
+aws configure
+# Enter your AWS Access Key ID, Secret Access Key, and region
+```
+
+Option B - Set environment variables:
+```bash
+export AWS_ACCESS_KEY_ID=your_access_key
+export AWS_SECRET_ACCESS_KEY=your_secret_key
+export AWS_REGION=us-east-1
+```
+
+**Step 3: Set environment variables**
+```bash
+# Create .env file
+cp .env.example .env
+
+# Edit .env with your configuration
+# AWS_REGION=us-east-1
+# APPLICATIONS_TABLE=applications
+# API_KEYS_TABLE=api_keys
+# ALLOWED_ORIGINS=*
+```
+
+**Step 4: Run the server**
+```bash
 python server.py
 ```
 
 Server will start at `http://localhost:8001`
+
+**Note**: DynamoDB tables will be automatically created on first run!
 
 ### Docker Development
 
@@ -32,13 +71,21 @@ Server will start at `http://localhost:8001`
 # Build image
 docker build -t notification-backend .
 
-# Run container
+# Run container with AWS credentials
 docker run -d \
   --name notification-platform-backend \
   -p 8001:8001 \
+  -e AWS_REGION=us-east-1 \
+  -e APPLICATIONS_TABLE=applications \
+  -e API_KEYS_TABLE=api_keys \
   -e ALLOWED_ORIGINS="*" \
+  -v ~/.aws:/root/.aws:ro \
   notification-backend:latest
 ```
+
+**Note**: The `-v ~/.aws:/root/.aws:ro` mounts your AWS credentials into the container.
+
+**For EC2 deployment**: Use IAM role instead of mounting credentials.
 
 ### Docker Compose
 
@@ -53,9 +100,17 @@ docker-compose logs -f
 docker-compose down
 ```
 
+**Important**: Update `docker-compose.yml` to include AWS environment variables and credentials.
+
 ## Deployment
 
 ### Deploy to EC2
+
+**Prerequisites:**
+1. EC2 instance running (current: `13.221.91.36`)
+2. **IAM role attached to EC2 instance** with DynamoDB permissions (see Configuration section)
+3. Security group allows inbound traffic on port 80
+4. SSH access to EC2 instance
 
 **Quick Deploy:**
 ```bash
@@ -65,8 +120,10 @@ chmod +x deploy-to-ec2.sh
 
 **Example:**
 ```bash
-./deploy-to-ec2.sh 54.87.39.36 https://my-bucket.s3.amazonaws.com
+./deploy-to-ec2.sh 13.221.91.36 https://my-bucket.s3.amazonaws.com
 ```
+
+**Important**: Ensure the EC2 instance has an IAM role with DynamoDB permissions before deploying!
 
 **Manual Deploy:**
 See [EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md) for detailed instructions.
@@ -78,8 +135,15 @@ See [EC2_DEPLOYMENT.md](EC2_DEPLOYMENT.md) for detailed instructions.
 Create a `.env` file (see `.env.example`):
 
 ```bash
-# Database
-DATABASE_URL=sqlite:///./app.db
+# AWS Configuration
+AWS_REGION=us-east-1
+
+# DynamoDB Table Names
+APPLICATIONS_TABLE=applications
+API_KEYS_TABLE=api_keys
+
+# For local DynamoDB development (optional)
+# DYNAMODB_ENDPOINT=http://localhost:8000
 
 # CORS - comma-separated origins
 ALLOWED_ORIGINS=https://your-bucket.s3.amazonaws.com,https://your-domain.com
@@ -88,6 +152,78 @@ ALLOWED_ORIGINS=https://your-bucket.s3.amazonaws.com,https://your-domain.com
 APP_PORT=8001
 APP_HOST=0.0.0.0
 ```
+
+### AWS Credentials
+
+The application uses boto3 to connect to DynamoDB. Credentials can be provided in several ways:
+
+**1. IAM Role (Recommended for EC2/ECS):**
+- Attach an IAM role to your EC2 instance with DynamoDB permissions
+- No additional configuration needed
+- Most secure approach
+
+**2. Environment Variables:**
+```bash
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+```
+
+**3. AWS Credentials File:**
+- Mount `~/.aws/credentials` into the Docker container
+- See `docker-compose.yml` for example
+
+### Required IAM Permissions
+
+Your EC2 instance or IAM user needs the following permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:CreateTable",
+        "dynamodb:DescribeTable",
+        "dynamodb:PutItem",
+        "dynamodb:GetItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:*:*:table/applications",
+        "arn:aws:dynamodb:*:*:table/applications/index/*",
+        "arn:aws:dynamodb:*:*:table/api_keys",
+        "arn:aws:dynamodb:*:*:table/api_keys/index/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+**To attach IAM role to EC2 instance:**
+1. Go to AWS Console → IAM → Roles
+2. Create a new role with the above permissions
+3. Go to EC2 → Instances → Select your instance
+4. Actions → Security → Modify IAM role
+5. Attach the created role
 
 ### CORS Configuration
 
@@ -190,25 +326,90 @@ curl -H "Origin: https://your-bucket.s3.amazonaws.com" \
 
 ## Database
 
-### SQLite (Default)
+### AWS DynamoDB
 
-Data stored in `app.db` file (or `/app/data/app.db` in Docker).
+The application uses **AWS DynamoDB** as its database. DynamoDB is a fully managed NoSQL database service that provides:
 
-### PostgreSQL (Production)
+- **Serverless**: No servers to manage
+- **Auto-scaling**: Automatically scales to handle traffic
+- **High availability**: Built-in replication across multiple availability zones
+- **Performance**: Single-digit millisecond latency
+- **Cost-effective**: Pay only for what you use
 
-Update `DATABASE_URL`:
+### DynamoDB Tables
+
+The application uses two DynamoDB tables:
+
+#### 1. Applications Table
+- **Table Name**: `applications` (configurable via `APPLICATIONS_TABLE` env var)
+- **Partition Key**: `id` (String - UUID)
+- **Attributes**:
+  - `id`: String (UUID)
+  - `name`: String
+  - `application_id`: String
+  - `email`: String
+  - `domain`: String
+  - `created_at`: String (ISO 8601 datetime)
+  - `updated_at`: String (ISO 8601 datetime)
+- **Global Secondary Index**:
+  - `application_id-index`: For querying by application_id
+
+#### 2. API Keys Table
+- **Table Name**: `api_keys` (configurable via `API_KEYS_TABLE` env var)
+- **Partition Key**: `app_id` (String)
+- **Sort Key**: `id` (String - UUID)
+- **Attributes**:
+  - `app_id`: String (references Applications.id)
+  - `id`: String (UUID)
+  - `key_hash`: String (SHA-256 hash)
+  - `name`: String
+  - `created_at`: String (ISO 8601 datetime)
+  - `expires_at`: String (ISO 8601 datetime, nullable)
+  - `last_used_at`: String (ISO 8601 datetime, nullable)
+  - `is_active`: Boolean
+- **Global Secondary Index**:
+  - `key_hash-index`: For fast API key verification
+
+### Table Initialization
+
+Tables are **automatically created** on application startup if they don't exist. The application will:
+1. Check if tables exist
+2. Create tables with proper schema if missing
+3. Create Global Secondary Indexes
+4. Wait for tables to become active
+
+No manual table creation is required!
+
+### Backup & Recovery
+
+DynamoDB provides built-in backup capabilities:
+
+**Point-in-Time Recovery (PITR):**
 ```bash
-DATABASE_URL=postgresql://user:password@host:5432/dbname
+# Enable PITR via AWS Console or CLI
+aws dynamodb update-continuous-backups \
+  --table-name applications \
+  --point-in-time-recovery-specification PointInTimeRecoveryEnabled=true
 ```
 
-### Backup
+**On-Demand Backups:**
+```bash
+# Create backup
+aws dynamodb create-backup \
+  --table-name applications \
+  --backup-name applications-backup-$(date +%Y%m%d)
+```
+
+### Local Development with DynamoDB
+
+For local development, you can use DynamoDB Local:
 
 ```bash
-# SQLite backup
-cp app.db app.db.backup
+# Run DynamoDB Local with Docker
+docker run -d -p 8000:8000 amazon/dynamodb-local
 
-# Docker volume backup
-docker exec notification-platform-backend sqlite3 /app/data/app.db ".backup /app/data/backup.db"
+# Set environment variable
+export DYNAMODB_ENDPOINT=http://localhost:8000
 ```
 
 ## Monitoring
@@ -258,11 +459,29 @@ docker rm notification-platform-backend
 ### Database Issues
 
 ```bash
-# Access container shell
-docker exec -it notification-platform-backend /bin/bash
+# Check DynamoDB connection
+curl http://localhost:8001/health
 
-# Check database file
-ls -la /app/data/app.db
+# Verify AWS credentials
+aws sts get-caller-identity
+
+# Check DynamoDB tables
+aws dynamodb list-tables
+
+# Describe table
+aws dynamodb describe-table --table-name applications
+```
+
+### IAM Permission Issues
+
+```bash
+# If you see "AccessDeniedException" errors:
+# 1. Verify IAM role is attached to EC2 instance
+# 2. Check IAM policy includes required DynamoDB permissions
+# 3. Verify table names match environment variables
+
+# Test IAM permissions
+aws dynamodb scan --table-name applications --max-items 1
 ```
 
 ## Development
@@ -289,13 +508,13 @@ notification-platform-test-backend/
 4. Test locally
 5. Deploy
 
-### Database Migrations
+### Database Schema Changes
 
-For schema changes:
-1. Update SQLAlchemy models in `server.py`
-2. Delete `app.db` (development only)
-3. Restart server to recreate tables
-4. For production, use Alembic for migrations
+For DynamoDB schema changes:
+1. Update table definitions in `server.py`
+2. Tables are automatically created/updated on startup
+3. For production, consider using AWS CloudFormation or Terraform
+4. See [DYNAMODB_MIGRATION.md](DYNAMODB_MIGRATION.md) for migration details
 
 ## Security
 
@@ -319,23 +538,30 @@ curl -H "X-API-Key: sk_your_api_key_here" \
 
 - [ ] Set specific ALLOWED_ORIGINS
 - [ ] Use HTTPS (ALB or nginx)
-- [ ] Use strong database passwords
+- [ ] Attach IAM role to EC2 instance with DynamoDB permissions
+- [ ] Enable DynamoDB Point-in-Time Recovery (PITR)
 - [ ] Enable CloudWatch logging
-- [ ] Set up automated backups
+- [ ] Set up DynamoDB automated backups
 - [ ] Use Secrets Manager for sensitive data
 - [ ] Restrict EC2 Security Group
 - [ ] Enable VPC security
+- [ ] Configure DynamoDB auto-scaling or use on-demand billing
+- [ ] Set up CloudWatch alarms for DynamoDB throttling
 
 ## Performance
 
 ### Optimization Tips
 
-1. Use PostgreSQL for production
-2. Enable database connection pooling
-3. Add caching layer (Redis)
+1. **DynamoDB**: Already optimized for high performance
+   - Single-digit millisecond latency
+   - Auto-scaling enabled
+   - Global Secondary Indexes for fast queries
+2. Enable database connection pooling (boto3 handles this)
+3. Add caching layer (Redis/ElastiCache) for frequently accessed data
 4. Use CDN for static assets
 5. Enable gzip compression
-6. Optimize database queries
+6. Optimize DynamoDB queries (use Query instead of Scan when possible)
+7. Use DynamoDB on-demand billing for variable workloads
 
 ### Scaling
 
@@ -343,7 +569,16 @@ curl -H "X-API-Key: sk_your_api_key_here" \
 2. Deploy multiple EC2 instances
 3. Use Auto Scaling Groups
 4. Implement health checks
-5. Use RDS with read replicas
+5. DynamoDB automatically scales to handle traffic
+6. Consider DynamoDB Global Tables for multi-region deployment
+
+### DynamoDB Performance Considerations
+
+- **Read/Write Capacity**: Tables are created with 5 RCU/WCU (provisioned)
+- **On-Demand Mode**: Consider switching for unpredictable workloads
+- **Global Secondary Indexes**: Enable fast lookups without table scans
+- **Batch Operations**: Use batch_write_item for bulk operations
+- **Query vs Scan**: Always use Query with partition key when possible
 
 ## License
 
@@ -357,7 +592,56 @@ For issues or questions:
 
 ## Related Documentation
 
+- [DynamoDB Migration Guide](DYNAMODB_MIGRATION.md) - **Important: Read this for DynamoDB setup details**
 - [EC2 Deployment Guide](EC2_DEPLOYMENT.md)
+- [AWS Credentials Setup](AWS_CREDENTIALS_SETUP.md)
 - [Integration Guide](../../INTEGRATION_GUIDE.md)
 - [Quick Reference](../../QUICK_DEPLOYMENT_REFERENCE.md)
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     AWS Cloud Infrastructure                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                               │
+│  ┌──────────────────┐              ┌────────────────────┐   │
+│  │   AWS S3 Bucket  │              │   AWS EC2 Instance │   │
+│  │  (Frontend)      │◄────CORS────►│  (Docker Backend)  │   │
+│  │                  │              │                    │   │
+│  │  - Next.js App   │              │  - FastAPI App     │   │
+│  │  - Static Files  │              │  - Port 80         │   │
+│  └──────────────────┘              └─────────┬──────────┘   │
+│                                               │               │
+│                                               │               │
+│                                    ┌──────────▼──────────┐   │
+│                                    │   AWS DynamoDB      │   │
+│                                    │   (Database)        │   │
+│                                    │                     │   │
+│                                    │  - applications     │   │
+│                                    │  - api_keys         │   │
+│                                    │  - Auto-scaling     │   │
+│                                    └─────────────────────┘   │
+│                                               │               │
+│                                    ┌──────────▼──────────┐   │
+│                                    │  AWS Services       │   │
+│                                    │  - SES (Email)      │   │
+│                                    │  - SNS (SMS/Push)   │   │
+│                                    └─────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+1. **Frontend (S3)** → Makes API calls to backend
+2. **Backend (EC2)** → Processes requests, interacts with DynamoDB
+3. **DynamoDB** → Stores application data, API keys, notifications
+4. **AWS Services** → Backend uses SES for emails, SNS for SMS/push notifications
+
+### Key Components
+
+- **Frontend**: Static Next.js app hosted on S3
+- **Backend**: FastAPI application in Docker container on EC2 (http://13.221.91.36:80)
+- **Database**: DynamoDB tables (applications, api_keys)
+- **AWS Services**: SES, SNS for notifications
 
